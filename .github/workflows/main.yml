@@ -15,8 +15,8 @@ jobs:
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
           
-          # Remove any existing rule with the same name to avoid duplication
-          netsh advfirewall firewall delete rule name="RDP-Tailscale"
+          # Remove any existing rule safely
+          netsh advfirewall firewall delete rule name="RDP-Tailscale" || Write-Host "No old rule to delete."
           
           # Allow incoming connections on port 3389
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
@@ -35,18 +35,17 @@ jobs:
             Special = ([char[]](33..47) + [char[]](58..64) + [char[]](91..96) + [char[]](123..126))
           }
           \$rawPassword = @()
-          rawPassword += charSet.Upper | Get-Random -Count 4
-          rawPassword += charSet.Lower | Get-Random -Count 4
-          rawPassword += charSet.Number | Get-Random -Count 4
-          rawPassword += charSet.Special | Get-Random -Count 4
-          password = -join (rawPassword | Sort-Object { Get-Random })
-          securePass = ConvertTo-SecureString password -AsPlainText -Force
+          \(rawPassword +=\)charSet.Upper | Get-Random -Count 4
+          \(rawPassword +=\)charSet.Lower | Get-Random -Count 4
+          \(rawPassword +=\)charSet.Number | Get-Random -Count 4
+          \(rawPassword +=\)charSet.Special | Get-Random -Count 4
+          \(password = -join (\)rawPassword | Sort-Object { Get-Random })
+          \(securePass = ConvertTo-SecureString\)password -AsPlainText -Force
           
           New-LocalUser -Name "RDP" -Password \$securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member "RDP"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
           
-          # Output generated credentials cleanly into the workflow logs
           Write-Host "=================================================="
           Write-Host "RDP USER: RDP"
           Write-Host "RDP PASSWORD: \$password"
@@ -60,9 +59,9 @@ jobs:
       - name: Install Tailscale
         shell: powershell
         run: |
-          \$tsUrl = "https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
-          installerPath = "env:TEMP\tailscale.msi"
-          Invoke-WebRequest -Uri tsUrl -OutFile installerPath
+          \$tsUrl = "https://tailscale.com"
+          \(installerPath = "\)env:TEMP\tailscale.msi"
+          Invoke-WebRequest -Uri \(tsUrl -OutFile\)installerPath
           Start-Process msiexec.exe -ArgumentList "/i", "`"$installerPath`"", "/quiet", "/norestart" -Wait
           Remove-Item \$installerPath -Force
 
@@ -74,7 +73,7 @@ jobs:
           
           # Wait for Tailscale to assign an IP
           \$tsIP = \(null\)retries = 0
-          while (-not tsIP -and retries -lt 10) {
+          while (-not \(tsIP -and\)retries -lt 10) {
             \(tsIP = & "\)env:ProgramFiles\Tailscale\tailscale.exe" ip -4
             Start-Sleep -Seconds 5
             \$retries++
@@ -94,7 +93,6 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Workflow is holding open. You can connect now."
-          # Loop indefinitely (up to the 6-hour runner limit) to prevent the runner from closing
           while (\$true) {
             Start-Sleep -Seconds 60
           }
