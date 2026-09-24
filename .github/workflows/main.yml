@@ -50,7 +50,7 @@ jobs:
           Add-LocalGroupMember -Group "Administrators" -Member "RDP"
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
           
-          # Correct formatting to pass credentials into environment variables safely
+          # Save password to Environment for the final step
           Add-Content -Path \(env:GITHUB_ENV -Value "RDP_PASS=\)password"
           
           if (-not (Get-LocalUser -Name "RDP")) {
